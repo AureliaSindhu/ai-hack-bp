@@ -1,3 +1,10 @@
+# Core dependencies for the squat detection API
+Flask==3.0.0
+Flask-CORS==4.0.0
+toml==0.10.2
+pandas==2.1.4
+numpy==1.24.3
+
 aiobotocore @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_1cl06d5vjc/croot/aiobotocore_1714464399334/work
 aiohappyeyeballs @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_170hwh6b2i/croot/aiohappyeyeballs_1725434022310/work
 aiohttp==3.11.18

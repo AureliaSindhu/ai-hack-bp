@@ -1,0 +1,26 @@
+{
+  "name": "ai-squat-detection",
+  "version": "1.0.0",
+  "description": "AI-powered squat detection with Next.js frontend and Python backend",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd client && npm run dev",
+    "dev:backend": "cd server && python app.py",
+    "build": "cd client && npm run build",
+    "start": "cd client && npm start",
+    "install:all": "npm install && cd client && npm install && cd ../server && pip install -r requirements.txt"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "ai",
+    "pose-detection",
+    "squat",
+    "nextjs",
+    "python",
+    "flask"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,5 +1,3 @@
-# testing squat pose detection
-
 import toml
 import logging
 import logging.handlers
@@ -7,8 +5,14 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 from datetime import datetime
+import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 from sports2d import Sports2D
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 def parse_squat_reps(angle_csv_path, depth_threshold=90):
     """
@@ -49,67 +53,96 @@ def parse_squat_reps(angle_csv_path, depth_threshold=90):
 
     return reps
 
+@app.route('/api/squat', methods=['GET'])
+def get_squat_info():
+    """Get information about squat detection capabilities"""
+    return jsonify({
+        'message': 'Squat detection API is running',
+        'status': 'ready',
+        'features': ['real-time pose detection', 'squat rep counting', 'angle analysis']
+    })
 
-def main():
-    # 1) Load config
-    config_path = "config.toml"  # or "Config_demo.toml", etc.
+@app.route('/api/squat', methods=['POST'])
+def process_squat():
+    """Process squat detection from webcam or video file"""
     try:
-        config_dict = toml.load(config_path)
-    except FileNotFoundError:
-        logging.warning(
-            f"No config file found at {config_path}; using default Sports2D logic."
-        )
-        config_dict = {}
+        data = request.get_json() or {}
+        
+        # Get parameters from request
+        depth_threshold = data.get('depth_threshold', 90)
+        use_webcam = data.get('use_webcam', True)
+        video_path = data.get('video_path', None)
+        
+        # 1) Load config
+        config_path = "config.toml"
+        try:
+            config_dict = toml.load(config_path)
+        except FileNotFoundError:
+            logging.warning(
+                f"No config file found at {config_path}; using default Sports2D logic."
+            )
+            config_dict = {}
 
-    # 2) Override key fields for *webcam* usage
-    # Make sure we have the minimal structure
-    config_dict.setdefault("project", {})
-    config_dict.setdefault("process", {})
+        # 2) Configure for webcam or video file usage
+        config_dict.setdefault("project", {})
+        config_dict.setdefault("process", {})
 
-    # Force usage of the webcam
-    config_dict["project"]["video_input"] = "webcam"
+        if use_webcam:
+            config_dict["project"]["video_input"] = "webcam"
+        elif video_path:
+            config_dict["project"]["video_input"] = video_path
+        else:
+            return jsonify({'error': 'No video input specified'}), 400
 
-    # Ensure real-time results
-    config_dict["process"]["show_realtime_results"] = True
+        # Ensure real-time results
+        config_dict["process"]["show_realtime_results"] = True
+        config_dict["process"]["multiperson"] = False
 
-    # (Optional) single person to keep it simpler
-    config_dict["process"]["multiperson"] = False
+        # 3) Run the main sports2d pipeline
+        start_time = datetime.now()
+        Sports2D.process(config_dict)
 
-    # 3) Run the main sports2d pipeline
-    # This will open a webcam feed in a window & produce CSV angle files upon completion
-    start_time = datetime.now()
-    Sports2D.process(config_dict)  # offline => no per-frame callback
+        elapsed = (datetime.now() - start_time).total_seconds()
+        logging.info(f"Pose + angle processing finished in {elapsed:.1f} seconds.")
 
-    elapsed = (datetime.now() - start_time).total_seconds()
-    logging.info(f"Pose + angle processing finished in {elapsed:.1f} seconds.")
+        # 4) Parse the CSV for squat analysis
+        result_dir = config_dict["process"].get("result_dir", "")
+        if not result_dir:
+            result_dir = Path.cwd()
+        else:
+            result_dir = Path(result_dir).resolve()
 
-    # 4) After finishing, parse the CSV for your squat analysis
-    #    Typically, Sports2D saves angles to something like:
-    #       <video_basename>_<pose_model>_person0_angles.csv
-    #    But if it's a webcam, the name might vary. We can search for "person0_angles.csv"
-    #    in the configured result directory.
+        angle_csv_list = list(result_dir.glob("*person0_angles.csv"))
+        if not angle_csv_list:
+            return jsonify({
+                'error': 'No angle CSV file found. Possibly no frames were recorded.'
+            }), 404
 
-    result_dir = config_dict["process"].get("result_dir", "")
-    if not result_dir:
-        result_dir = Path.cwd()
-    else:
-        result_dir = Path(result_dir).resolve()
+        # We assume the last produced file is our new result
+        angle_csv_path = sorted(angle_csv_list, key=lambda x: x.stat().st_mtime)[-1]
+        reps = parse_squat_reps(angle_csv_path, depth_threshold=depth_threshold)
+        
+        return jsonify({
+            'success': True,
+            'squat_reps': reps,
+            'processing_time': elapsed,
+            'depth_threshold': depth_threshold,
+            'csv_file': str(angle_csv_path)
+        })
 
-    angle_csv_list = list(result_dir.glob("*person0_angles.csv"))
-    if not angle_csv_list:
-        logging.warning(
-            "No angle CSV file found. Possibly no frames were recorded, or naming differs."
-        )
-        return
+    except Exception as e:
+        logging.error(f"Error processing squat detection: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
-    # We assume the last produced file is our new result
-    angle_csv_path = sorted(angle_csv_list, key=lambda x: x.stat().st_mtime)[-1]
-    reps = parse_squat_reps(angle_csv_path, depth_threshold=90)
-    logging.info(f"\nTotal squat reps (offline analysis) = {reps}\n")
-
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({'status': 'healthy', 'service': 'squat-detection-api'})
 
 if __name__ == "__main__":
     logging.basicConfig(
         format="%(message)s", level=logging.INFO, handlers=[logging.StreamHandler()]
     )
-    main()
+    
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)

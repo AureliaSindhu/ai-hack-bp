@@ -1,0 +1,85 @@
+###############################################################################
+## SPORTS2D REAL-TIME POSTURE CONFIG                                         ##
+###############################################################################
+
+[project]
+video_input = 'webcam'        # Use the default webcam
+person_height = 1.70          # Optional; only needed if you want meter conversion
+time_range = []               # Process entire stream
+video_dir = ''                # Current directory
+webcam_id = 0
+input_size = [1280, 720]      # 720p resolution: good balance of speed/accuracy
+load_trc = ""
+
+[process]
+multiperson = false           # Single user for posture
+show_realtime_results = true  # Show overlay in real time
+save_vid = false              # Disable saving output video
+save_img = false              # Disable saving frames
+save_pose = false             # Disable saving .trc pose data
+calculate_angles = true       # We still want angles for posture
+save_angles = false           # Disable saving .mot files
+result_dir = 'results'        # Where logs or any optional outputs go
+
+[pose]
+pose_model = 'Body_with_feet' 
+mode = 'lightweight'          # Faster but less accurate
+det_frequency = 5             # Detect bounding boxes every 5 frames, track in between
+device = 'auto'               # Auto picks GPU if available
+backend = 'auto'
+tracking_mode = 'sports2d'
+keypoint_likelihood_threshold = 0.3
+average_likelihood_threshold = 0.5
+keypoint_number_threshold = 0.3
+
+[px_to_meters_conversion]
+to_meters = false             # Skip meter conversion for simpler real-time posture
+calib_file = ''
+calib_on_person_id = 0
+floor_angle = 'auto'          # Usually fine for upright posture; or use 0 if camera is stable/level
+xy_origin = ['auto']
+save_calib = false
+
+[angles]
+display_angle_values_on = ['body']  
+# For posture, you might want to see angles near each joint. 
+# Or ['list'] for top-left readout, or ['body', 'list'] for both.
+
+# Which angles to compute? 
+joint_angles = [
+  'Right knee', 'Left knee', 
+  'Right hip',  'Left hip', 
+  'Right shoulder', 'Left shoulder', 
+  'Right elbow',    'Left elbow'
+]
+segment_angles = ['Trunk']   # Example: trunk angle to measure forward/back lean
+fontSize = 0.3
+
+[post-processing]
+interpolate = true            # Slight smoothing between detection gaps
+interp_gap_smaller_than = 5
+fill_large_gaps_with = 'last_value' 
+filter = false                # Skip filtering for real-time speed 
+show_graphs = false           # Don’t pop up processing graphs in real-time
+
+[post-processing.butterworth]
+order = 4
+cut_off_frequency = 6 
+
+[post-processing.gaussian]
+sigma_kernel = 1
+
+[post-processing.loess]
+nb_values_used = 5
+
+[post-processing.median]
+kernel_size = 3
+
+[inverse-kinematics]
+do_ik = false
+person_orientation = ['none']
+osim_setup_path = '../OpenSim_setup'
+close_to_zero_speed_m = 0.2
+
+[logging]
+use_custom_logging = false

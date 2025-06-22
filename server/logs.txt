@@ -1,0 +1,11 @@
+
+
+---------------------------------------------------------------------
+Processing demo.mp4
+On Sunday 22. June 2025, 02:29:18
+---------------------------------------------------------------------
+
+Estimating pose...
+Using HALPE_26 model (body and feet) for pose estimation in balanced mode.
+
+Valid MPS installation found: using ONNXRuntime backend with GPU.
